@@ -20,7 +20,17 @@ const (
 	Attempts int = iota
 	Retry
 )
-
+const (
+	maxEsc = 100
+	rMin   = -2.
+	rMax   = .5
+	iMin   = -1.
+	iMax   = 1.
+	width  = 1000
+	red    = 800
+	green  = 600
+	blue   = 700
+)
 // Backend holds the data about a server
 type Backend struct {
 	URL          *url.URL
@@ -125,11 +135,26 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("aaaaaa")
+	// send requests
+	// insert mandelbrot
+
+	// scale := width / (rMax - rMin)
+	// height := int(scale * (iMax - iMin))
+	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 	peer := serverPool.GetNextPeer()
-	if peer != nil {
-		peer.ReverseProxy.ServeHTTP(w, r)
-		return
+	for x := 0; x < width; x++{
+
+		println("aaaaaa")
+		
+		if peer != nil {
+			peer.ReverseProxy.ServeHTTP(w, r)
+			return
+		}
 	}
+
+	
+	
 	http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
 

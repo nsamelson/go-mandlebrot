@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,6 +10,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 const (
@@ -33,7 +34,6 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: get url parameters and copute mandel
 
-
 	// link : http://localhost:3031/mandel/?x=21&y=22
 	values := r.URL.Query()
 	for k, v := range values {
@@ -41,16 +41,16 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send request to loadbalancer and wait for response
-	resp, err := http.Get("http://localhost:3030/mandel")
+	// resp, err := http.Get("http://localhost:3030/mandel")
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	// body, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
 	// draw image
 	scale := width / (rMax - rMin)
@@ -60,34 +60,50 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
 
 	// create an array with the size of the image
-	var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-	json.Unmarshal([]byte(body), &mandelArray)
+	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+	// json.Unmarshal([]byte(body), &mandelArray)
 
 	//TODO: send requests for each line of pixels : https://vanhunteradams.com/DE1/Mandelbrot/Mandelbrot_Implementation.html
 	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
+		if x/10 == 0 {
+			resp, err := http.Get("http://localhost:3030/mandel/?x=" + strconv.Itoa(x))
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-			c := mandelArray[x][y]
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			var array [10][int(width / (rMax - rMin) * (iMax - iMin))]float64
+			json.Unmarshal([]byte(body), &array)
 
-			cr := uint8(float64(red) *c)
-			cg := uint8(float64(green) *c)
-			cb := uint8(float64(blue) *c)
-			b.Set(x, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+			for y := 0; y < height; y++ {
 
+				c := array[x][y]
+
+				cr := uint8(float64(red) * c)
+				cg := uint8(float64(green) * c)
+				cb := uint8(float64(blue) * c)
+
+				b.Set(x, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+
+			}
 		}
+
 	}
 
 	// create image
 	f, err := os.Create("mandelbrot.png")
 	if err != nil {
-	    fmt.Println(err)
-	    return
+		fmt.Println(err)
+		return
 	}
 	if err = png.Encode(f, b); err != nil {
-	    fmt.Println(err)
+		fmt.Println(err)
 	}
 	if err = f.Close(); err != nil {
-	    fmt.Println(err)
+		fmt.Println(err)
 	}
 
 	// render image
