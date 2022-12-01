@@ -171,6 +171,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	b := image.NewNRGBA(bounds)
 	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
 
+	ch := make(chan []byte)
 	for x := 0; x < width; x++ {
 		
 
@@ -179,7 +180,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 			log.Println(peer.URL.String())
 
 
-			var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+			
 			// resp, err := http.Get(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
 			// if err != nil {
 			// 	log.Fatalln(err)
@@ -191,11 +192,31 @@ func lb(w http.ResponseWriter, r *http.Request) {
 			// if err != nil {
 			// 	log.Fatalln(err)
 			// }
-			ch := make(chan []byte)
+			
 			go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns), ch)
 			
 			
-			json.Unmarshal([]byte(<-ch), &array)
+			// json.Unmarshal([]byte(<-ch), &array)
+
+			// for x_1 := 0; x_1 < n_columns; x_1++ {
+			// 	for y := 0; y < height; y++ {
+
+			// 		c := array[x_1][y]
+
+			// 		cr := uint8(float64(red) * c)
+			// 		cg := uint8(float64(green) * c)
+			// 		cb := uint8(float64(blue) * c)
+
+			// 		b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+
+			// 	}
+			// }
+		}
+	}
+	x:=0
+	for i := 0; i < width/n_columns; i++{
+		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+		json.Unmarshal([]byte(<-ch), &array)
 
 			for x_1 := 0; x_1 < n_columns; x_1++ {
 				for y := 0; y < height; y++ {
@@ -210,7 +231,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 				}
 			}
-		}
+			x+= n_columns
 	}
 
 	// create image
