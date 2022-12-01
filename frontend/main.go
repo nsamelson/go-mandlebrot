@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 const (
@@ -62,39 +60,47 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	// create an array with the size of the image
 	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 	// json.Unmarshal([]byte(body), &mandelArray)
-	nodes := 100
+	_, err := http.Get("http://localhost:3030/")
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
-	for x := 0; x < width; x++ {
-		if x%nodes == 0 {
-			resp, err := http.Get("http://localhost:3030/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+nodes))
-			if err != nil {
-				log.Fatalln(err)
-			}
+	// body, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-			json.Unmarshal([]byte(body), &array)
+	// for x := 0; x < width; x++ {
+	// 	if x%nodes == 0 {
+	// 		resp, err := http.Get("http://localhost:3030/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+nodes))
+	// 		if err != nil {
+	// 			log.Fatalln(err)
+	// 		}
 
-			for x_1 := 0; x_1 < nodes; x_1++ {
-				for y := 0; y < height; y++ {
+	// 		body, err := ioutil.ReadAll(resp.Body)
+	// 		if err != nil {
+	// 			log.Fatalln(err)
+	// 		}
+	// 		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+	// 		json.Unmarshal([]byte(body), &array)
 
-					c := array[x_1][y]
+	// 		for x_1 := 0; x_1 < nodes; x_1++ {
+	// 			for y := 0; y < height; y++ {
 
-					cr := uint8(float64(red) * c)
-					cg := uint8(float64(green) * c)
-					cb := uint8(float64(blue) * c)
+	// 				c := array[x_1][y]
 
-					b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+	// 				cr := uint8(float64(red) * c)
+	// 				cg := uint8(float64(green) * c)
+	// 				cb := uint8(float64(blue) * c)
 
-				}
-			}
+	// 				b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
 
-		}
+	// 			}
+	// 		}
 
-	}
+	// 	}
+
+	// }
 
 	// create image
 	f, err := os.Create("mandelbrot.png")

@@ -1,0 +1,44 @@
+version: "4.14"
+services:
+  app1:
+    build:
+      dockerfile: Dockerfile
+      context: backends
+      target: dev
+    volumes:
+      - ./backends:/opt/app/api
+    environment:
+      API_SERVER_ADDR: ":3031"
+    ports:
+      - "3031:3031"
+  app2:
+    build:
+      dockerfile: Dockerfile
+      context: backends
+      target: dev
+    volumes:
+      - ./backends:/opt/app/api
+    environment:
+      API_SERVER_ADDR: ":3031"
+    ports:
+      - "3032:3032"
+  app3:
+    build:
+      dockerfile: Dockerfile
+      context: backends
+      target: dev
+    volumes:
+      - ./backends:/opt/app/api
+    environment:
+      API_SERVER_ADDR: ":3031"
+    ports:
+      - "3033:3033"
+  lb:
+    build: 
+      dockerfile: Dockerfile
+      context: loadbalancer
+
+    container_name: lb
+    ports:
+      - "3030:3030"
+    command: --backends "http://app1:3031,http://app2:3031,http://app3:3031"

@@ -37,7 +37,6 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: get url parameters and copute mandel
 
-
 	// link : http://localhost:3031/mandel/?x=21&y=22
 	values := r.URL.Query()
 	for k, v := range values {
@@ -45,24 +44,24 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	x_1, _ := strconv.Atoi(values["x_1"][0])
 	x_2, _ := strconv.Atoi(values["x_2"][0])
-	
+
 	// insert mandelbrot
 	var (
 		x_range = x_2 - x_1
-		width 	= 1000
-		rMin   	= -2. 	
-		rMax   	= .5 	
-		iMin   	= -1. 	
-		iMax   	= 1.	
+		width   = 1000
+		rMin    = -2. / 1
+		rMax    = 0.5 / 1
+		iMin    = -1. 
+		iMax    = 1.
 	)
-	
-	scale 	:= float64(width) / (rMax - rMin)
-	height 	:= int(scale * (iMax - iMin))
+
+	scale := float64(width) / (rMax - rMin)
+	height := int(scale * (iMax - iMin))
 	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 
-	var mandelArray = make([][]float64,width)
+	var mandelArray = make([][]float64, width)
 	for x := range mandelArray {
-		mandelArray[x] = make([]float64,height)
+		mandelArray[x] = make([]float64, height)
 	}
 
 	for x := 0; x < x_range; x++ {
@@ -71,11 +70,11 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 				float64(x_1)/scale+rMin,
 				float64(y)/scale+iMin))
 			mandelArray[x][y] = c
-				
+
 		}
-		x_1 ++
+		x_1++
 	}
-  // send json response
+	// send json response
 	json.NewEncoder(w).Encode(mandelArray)
 
 }

@@ -1,15 +1,24 @@
 package main
+
 // https://kasvith.me/posts/lets-create-a-simple-lb-go/
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +40,7 @@ const (
 	green  = 600
 	blue   = 700
 )
+
 // Backend holds the data about a server
 type Backend struct {
 	URL          *url.URL
@@ -86,7 +96,7 @@ func (s *ServerPool) GetNextPeer() *Backend {
 	next := s.NextIndex()
 	l := len(s.backends) + next // start from next and move a full cycle
 	for i := next; i < l; i++ {
-		idx := i % len(s.backends) // take an index by modding
+		idx := i % len(s.backends)     // take an index by modding
 		if s.backends[idx].IsAlive() { // if we have an alive backend, use it and store if its not the original one
 			if i != next {
 				atomic.StoreUint64(&s.current, uint64(idx))
@@ -126,6 +136,23 @@ func GetRetryFromContext(r *http.Request) int {
 	return 0
 }
 
+// func getResponse(url string,ch chan<-string) []byte{
+// 	start := time.Now()
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
+
+// 	body, err := ioutil.ReadAll(resp.Body)
+// 	log.Println("printed")
+
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
+// 	ch <- body
+// 	return ch
+// }
+
 // lb load balances the incoming request
 func lb(w http.ResponseWriter, r *http.Request) {
 	attempts := GetAttemptsFromContext(r)
@@ -135,26 +162,80 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("aaaaaa")
-	// send requests
-	// insert mandelbrot
+	const width = 1000
+	n_columns := 100
+	
+	// draw image
+	scale := width / (rMax - rMin)
+	height := int(scale * (iMax - iMin))
+	bounds := image.Rect(0, 0, width, height)
+	b := image.NewNRGBA(bounds)
+	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
 
-	// scale := width / (rMax - rMin)
-	// height := int(scale * (iMax - iMin))
-	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-	peer := serverPool.GetNextPeer()
-	for x := 0; x < width; x++{
-
-		println("aaaaaa")
+	for x := 0; x < width; x++ {
 		
-		if peer != nil {
-			peer.ReverseProxy.ServeHTTP(w, r)
-			return
+
+		if x%n_columns == 0 {
+			peer := serverPool.GetNextPeer()
+			log.Println(peer.URL.String())
+
+
+
+			resp, err := http.Get(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			log.Println("printed")
+
+			if err != nil {
+				log.Fatalln(err)
+			}
+			
+			// var body []byte = go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
+			var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+			json.Unmarshal([]byte(body), &array)
+
+			for x_1 := 0; x_1 < n_columns; x_1++ {
+				for y := 0; y < height; y++ {
+
+					c := array[x_1][y]
+
+					cr := uint8(float64(red) * c)
+					cg := uint8(float64(green) * c)
+					cb := uint8(float64(blue) * c)
+
+					b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+
+				}
+			}
 		}
 	}
 
-	
-	
+	// create image
+	f, err := os.Create("mandelbrot.png")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err = png.Encode(f, b); err != nil {
+		fmt.Println(err)
+	}
+	if err = f.Close(); err != nil {
+		fmt.Println(err)
+	}
+
+	// render image
+	buf, _ := ioutil.ReadFile("mandelbrot.png")
+	w.Header().Set("Content-Type", "mandelbrot.png")
+	w.Write(buf)
+
+	// if buf != nil {
+	// 	return
+	// }
+
+
 	http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
 
@@ -173,7 +254,7 @@ func isBackendAlive(u *url.URL) bool {
 // healthCheck runs a routine for check status of the backends every 2 mins
 func healthCheck() {
 	t := time.NewTicker(time.Minute * 2)
-	for{
+	for {
 		select {
 		case <-t.C:
 			log.Println("Starting health check...")
@@ -250,9 +331,8 @@ func Serve() {
 	}
 }
 
-func main(){
+func main() {
 	fmt.Printf("starting things \n")
 
 	Serve()
 }
-
