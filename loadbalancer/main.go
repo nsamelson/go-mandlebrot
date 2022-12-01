@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	// "sort"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -136,19 +137,25 @@ func GetRetryFromContext(r *http.Request) int {
 	return 0
 }
 
-func getResponse(url string,ch chan<-[]byte){
+type Pair struct {
+	body []byte
+	order int
+}
+
+// Send Async request and push it into the channel
+func getResponse(url string,ch chan<-Pair, order int){
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	log.Println("printed")
 
 	if err != nil {
 		log.Fatalln(err)
 	}
-	ch <- body
+	
+	ch <- Pair{body,order}
 
 }
 
@@ -164,59 +171,36 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	const width = 1000
 	n_columns := 100
 	
+	
+	// Create channel
+	ch := make(chan Pair)
+
+	// 
+	for x := 0; x < width; x++ {
+		
+		if x%n_columns == 0 {
+			peer := serverPool.GetNextPeer()
+			log.Println(peer.URL.String())
+			
+			go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns), ch,x/n_columns)
+			
+			
+		}
+	}
+
 	// draw image
 	scale := width / (rMax - rMin)
 	height := int(scale * (iMax - iMin))
 	bounds := image.Rect(0, 0, width, height)
 	b := image.NewNRGBA(bounds)
 	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
-
-	ch := make(chan []byte)
-	for x := 0; x < width; x++ {
-		
-
-		if x%n_columns == 0 {
-			peer := serverPool.GetNextPeer()
-			log.Println(peer.URL.String())
-
-
-			
-			// resp, err := http.Get(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
-			// if err != nil {
-			// 	log.Fatalln(err)
-			// }
-
-			// body, err := ioutil.ReadAll(resp.Body)
-			// log.Println("printed")
-
-			// if err != nil {
-			// 	log.Fatalln(err)
-			// }
-			
-			go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns), ch)
-			
-			
-			// json.Unmarshal([]byte(<-ch), &array)
-
-			// for x_1 := 0; x_1 < n_columns; x_1++ {
-			// 	for y := 0; y < height; y++ {
-
-			// 		c := array[x_1][y]
-
-			// 		cr := uint8(float64(red) * c)
-			// 		cg := uint8(float64(green) * c)
-			// 		cb := uint8(float64(blue) * c)
-
-			// 		b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
-
-			// 	}
-			// }
-		}
-	}
-	x:=0
+	
+	// Read channel and set color for each pixel
 	for i := 0; i < width/n_columns; i++{
 		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-		json.Unmarshal([]byte(<-ch), &array)
+		channel:= <-ch
+		x := channel.order * n_columns
+		json.Unmarshal(channel.body, &array)
 
 			for x_1 := 0; x_1 < n_columns; x_1++ {
 				for y := 0; y < height; y++ {
@@ -231,7 +215,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 				}
 			}
-			x+= n_columns
+			// x+= n_columns
 	}
 
 	// create image
@@ -257,7 +241,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	// }
 
 
-	http.Error(w, "Service not available", http.StatusServiceUnavailable)
+	// http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
 
 // isAlive checks whether a backend is Alive by establishing a TCP connection
