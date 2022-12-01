@@ -136,22 +136,21 @@ func GetRetryFromContext(r *http.Request) int {
 	return 0
 }
 
-// func getResponse(url string,ch chan<-string) []byte{
-// 	start := time.Now()
-// 	resp, err := http.Get(url)
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
+func getResponse(url string,ch chan<-[]byte){
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-// 	body, err := ioutil.ReadAll(resp.Body)
-// 	log.Println("printed")
+	body, err := ioutil.ReadAll(resp.Body)
+	log.Println("printed")
 
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-// 	ch <- body
-// 	return ch
-// }
+	if err != nil {
+		log.Fatalln(err)
+	}
+	ch <- body
+
+}
 
 // lb load balances the incoming request
 func lb(w http.ResponseWriter, r *http.Request) {
@@ -180,22 +179,23 @@ func lb(w http.ResponseWriter, r *http.Request) {
 			log.Println(peer.URL.String())
 
 
-
-			resp, err := http.Get(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			body, err := ioutil.ReadAll(resp.Body)
-			log.Println("printed")
-
-			if err != nil {
-				log.Fatalln(err)
-			}
-			
-			// var body []byte = go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
 			var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-			json.Unmarshal([]byte(body), &array)
+			// resp, err := http.Get(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns))
+			// if err != nil {
+			// 	log.Fatalln(err)
+			// }
+
+			// body, err := ioutil.ReadAll(resp.Body)
+			// log.Println("printed")
+
+			// if err != nil {
+			// 	log.Fatalln(err)
+			// }
+			ch := make(chan []byte)
+			go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns), ch)
+			
+			
+			json.Unmarshal([]byte(<-ch), &array)
 
 			for x_1 := 0; x_1 < n_columns; x_1++ {
 				for y := 0; y < height; y++ {
