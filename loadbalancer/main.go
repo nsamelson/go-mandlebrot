@@ -175,17 +175,12 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	// Create channel
 	ch := make(chan Pair)
 
-	// 
-	for x := 0; x < width; x++ {
-		
-		if x%n_columns == 0 {
-			peer := serverPool.GetNextPeer()
-			log.Println(peer.URL.String())
+	// divide the work by sending multiple columns for each node in async
+	for x := 0; x < width/n_columns; x++ {
+
+		peer := serverPool.GetNextPeer()		
+		go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns), ch,x)
 			
-			go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+n_columns), ch,x/n_columns)
-			
-			
-		}
 	}
 
 	// draw image
@@ -197,9 +192,12 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	
 	// Read channel and set color for each pixel
 	for i := 0; i < width/n_columns; i++{
-		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+
+		// get first Pair in channel and get rid of it
 		channel:= <-ch
 		x := channel.order * n_columns
+
+		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 		json.Unmarshal(channel.body, &array)
 
 			for x_1 := 0; x_1 < n_columns; x_1++ {
@@ -215,7 +213,6 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 				}
 			}
-			// x+= n_columns
 	}
 
 	// create image
@@ -236,12 +233,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "mandelbrot.png")
 	w.Write(buf)
 
-	// if buf != nil {
-	// 	return
-	// }
 
-
-	// http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
 
 // isAlive checks whether a backend is Alive by establishing a TCP connection
