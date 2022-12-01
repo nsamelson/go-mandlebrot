@@ -62,11 +62,11 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	// create an array with the size of the image
 	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 	// json.Unmarshal([]byte(body), &mandelArray)
+	nodes := 100
 
-	//TODO: send requests for each line of pixels : https://vanhunteradams.com/DE1/Mandelbrot/Mandelbrot_Implementation.html
 	for x := 0; x < width; x++ {
-		if x/10 == 0 {
-			resp, err := http.Get("http://localhost:3030/mandel/?x=" + strconv.Itoa(x))
+		if x%nodes == 0 {
+			resp, err := http.Get("http://localhost:3030/mandel/?x_1=" + strconv.Itoa(x) + "&x_2=" + strconv.Itoa(x+nodes))
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -75,20 +75,23 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Fatalln(err)
 			}
-			var array [10][int(width / (rMax - rMin) * (iMax - iMin))]float64
+			var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 			json.Unmarshal([]byte(body), &array)
 
-			for y := 0; y < height; y++ {
+			for x_1 := 0; x_1 < nodes; x_1++ {
+				for y := 0; y < height; y++ {
 
-				c := array[x][y]
+					c := array[x_1][y]
 
-				cr := uint8(float64(red) * c)
-				cg := uint8(float64(green) * c)
-				cb := uint8(float64(blue) * c)
+					cr := uint8(float64(red) * c)
+					cg := uint8(float64(green) * c)
+					cb := uint8(float64(blue) * c)
 
-				b.Set(x, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+					b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
 
+				}
 			}
+
 		}
 
 	}
