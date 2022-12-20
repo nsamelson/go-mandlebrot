@@ -5,8 +5,6 @@ package main
 import (
 	"context"
 	// "math"
-
-	// "math"
 	// "sort"
 	"encoding/json"
 	"flag"
@@ -35,14 +33,17 @@ const (
 )
 const (
 	maxEsc = 100
+	width  = 1000
+	height = 800
+	red    = 800
+	green  = 600
+	blue   = 700
+)
+var (
 	rMin   = -2.
 	rMax   = .5
 	iMin   = -1.
 	iMax   = 1.
-	width  = 1000
-	red    = 800
-	green  = 600
-	blue   = 700
 )
 
 // Backend holds the data about a server
@@ -173,7 +174,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const width = 1000
-	n_columns := 100
+	n_columns := 200
 
 	// get vaules from url parameters
 
@@ -185,31 +186,41 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	y_px, _ := strconv.ParseFloat(values["y"][0], 32)
 	z_px, _ := strconv.ParseFloat(values["z"][0], 32)
 
-	new_rMin := rMin /z_px + (x_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
-	new_rMax := rMin /z_px + (x_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
-	new_iMin := iMin /z_px + (y_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
-	new_iMax := iMin /z_px + (y_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
-	// // compute ratio
-	// ratio_x := x_px / width
-	// ratio_y := y_px / 800 // heigth
+	// kinda working (can divide first argument by z or mutliply the second one by z to have another result)
+	new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
+	new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
+	new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
+	new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
 
-	// // // compute actual plan range
-	// r_range := rMin - rMax
-	// i_range := iMin - iMax
+	
+	// old try
+	// // compute imaginary plan range
+	// r_range := math.Abs(rMax - rMin)
+	// i_range := math.Abs(iMax - iMin)
 
 	// // actual center
-	// center_r := r_range / 2
-	// center_i := i_range / 2
+	// center_r := (rMax + rMin) / 2
+	// center_i := (iMax + iMin) / 2
+
+	// // new imaginary range
+	// new_r_range := r_range / z_px
+	// new_i_range := i_range / z_px
 
 	// // new center
-	// new_center_r := center_r * float64(ratio_x)
-	// new_center_i := center_i * float64(ratio_y)
+	// new_center_r := x_px / (width  * r_range) + center_r
+	// new_center_i := y_px / (height * i_range) + center_i
 
 	// // new plan coordinates
-	// new_rMin := new_center_r - math.Abs(r_range)/(2*z_px)
-	// new_rMax := new_center_r + math.Abs(r_range)/(2*z_px)
-	// new_iMin := new_center_i - math.Abs(i_range)/(2*z_px)
-	// new_iMax := new_center_i + math.Abs(i_range)/(2*z_px)
+	// new_rMin := new_center_r - new_r_range / 2
+	// new_rMax := new_center_r + new_r_range / 2
+	// new_iMin := new_center_i - new_i_range / 2
+	// new_iMax := new_center_i + new_i_range / 2
+
+	// to remember our new position
+	rMin   = new_rMin
+	rMax   = new_rMax
+	iMin   = new_iMin
+	iMax   = new_iMax
 
 	// Parameters in a string
 	str_new_rMin := fmt.Sprintf("%f", new_rMin)
@@ -231,8 +242,8 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// draw image
-	scale := width / (rMax - rMin)
-	height := int(scale * (iMax - iMin))
+	// scale := width / (rMax - rMin)
+	// height := int(scale * (iMax - iMin))
 	bounds := image.Rect(0, 0, width, height)
 	b := image.NewNRGBA(bounds)
 	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
@@ -244,7 +255,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		channel := <-ch
 		x := channel.order * n_columns
 
-		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
+		var array [width][height]float64
 		json.Unmarshal(channel.body, &array)
 
 		for x_1 := 0; x_1 < n_columns; x_1++ {
