@@ -13,12 +13,6 @@ import (
 
 const (
 	maxEsc = 100
-	rMin   = -2.
-	rMax   = .5
-	iMin   = -1.
-	iMax   = 1.
-
-	// width = 1000
 )
 
 func mandelHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +22,7 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 
-	// get the parameters from the url : http://localhost:3031/mandel/?x=21&y=22
+	// get the parameters from the url : http://localhost:3031/mandel/?x_1=400&x_2=500&...
 	values := r.URL.Query()
 
 	// range of columns of pixels to compute
@@ -41,20 +35,17 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	iMin, _ := strconv.ParseFloat(values["iMin"][0], 32)
 	iMax, _ := strconv.ParseFloat(values["iMax"][0], 32)
 
-	// insert mandelbrot
+	// mandelbrot parameters
 	var (
 		x_range = x_2 - x_1
 		width   = 1000
-		// rMin    = -2. / 1
-		// rMax    = 0.5 / 1
-		// iMin    = -1. /1
-		// iMax    = 1.
 	)
 
+	// scale the image and get the height (default is 800px)
 	scale := float64(width) / (rMax - rMin)
 	height := int(scale * (iMax - iMin))
-	// var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 
+	// create the 2D array matrix with specified width and height
 	var mandelArray = make([][]float64, width)
 	for x := range mandelArray {
 		mandelArray[x] = make([]float64, height)
@@ -67,10 +58,10 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 				float64(x_1)/scale+rMin,
 				float64(y)/scale+iMin))
 			mandelArray[x][y] = c
-
 		}
 		x_1++
 	}
+
 	// send json response
 	json.NewEncoder(w).Encode(mandelArray)
 
