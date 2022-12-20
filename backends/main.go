@@ -49,19 +49,19 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	x_2, _ := strconv.Atoi(values["x_2"][0])
 
 	// new plan coordinates
-	rMin, _ := strconv.ParseFloat(values["rMin"][0],32)
-	rMax, _ := strconv.ParseFloat(values["rMax"][0],32)
-	iMin, _ := strconv.ParseFloat(values["iMin"][0],32)
-	iMax, _ := strconv.ParseFloat(values["iMax"][0],32)
+	// rMin, _ := strconv.ParseFloat(values["rMin"][0],32)
+	// rMax, _ := strconv.ParseFloat(values["rMax"][0],32)
+	// iMin, _ := strconv.ParseFloat(values["iMin"][0],32)
+	// iMax, _ := strconv.ParseFloat(values["iMax"][0],32)
 
 	// insert mandelbrot
 	var (
 		x_range = x_2 - x_1
 		width   = 1000
-		// rMin    = -2. / 1
-		// rMax    = 0.5 / 1
-		// iMin    = -1. /1
-		// iMax    = 1.
+		rMin    = -2. / 1
+		rMax    = 0.5 / 1
+		iMin    = -1. /1
+		iMax    = 1.
 	)
 
 	scale := float64(width) / (rMax - rMin)

@@ -4,7 +4,7 @@ package main
 
 import (
 	"context"
-	"math"
+	// "math"
 	// "sort"
 	"encoding/json"
 	"flag"
@@ -145,7 +145,6 @@ type Pair struct {
 
 // Send Async request and push it into the channel
 func getResponse(url string, ch chan<- Pair, order int) {
-	log.Printf(url + "AAAAAAA")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
@@ -210,7 +209,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 	// Parameters in a string
 	// new_rMin := fmt.Sprintf("%f",)
-	test := strconv.FormatFloat(-1.125, 'g', 5, 64)
+	// test := strconv.FormatFloat(-1.125, 'g', 5, 64)
 	// new_coords := "&rMin="+new_rMin //+"&rMax="+fmt.Sprintf("%f",0.125)+"&iMin="+fmt.Sprintf("%f",-0.5)+"&iMax="+fmt.Sprintf("%f",0.5)
 
 	
@@ -224,7 +223,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		log.Printf("url")
 		// fmt.Print(new_coords)
 		peer := serverPool.GetNextPeer()
-		go getResponse(peer.URL.String() + "/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns) + "&rMin=aa", ch, x)
+		go getResponse(peer.URL.String() + "/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns), ch, x)
 
 	}
 
