@@ -181,7 +181,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	}
 	// x, _ := strconv.Atoi(values["x"][0])
 	// y, _ := strconv.Atoi(values["y"][0])
-	
+
 	// x := 400
 	// y := 400
 
@@ -208,11 +208,9 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	// new_iMax := new_center_i + math.Abs(i_range) /4
 
 	// Parameters in a string
-	// new_rMin := fmt.Sprintf("%f",)
+	new_rMin := fmt.Sprintf("%f", 1.125)
 	// test := strconv.FormatFloat(-1.125, 'g', 5, 64)
-	// new_coords := "&rMin="+new_rMin //+"&rMax="+fmt.Sprintf("%f",0.125)+"&iMin="+fmt.Sprintf("%f",-0.5)+"&iMax="+fmt.Sprintf("%f",0.5)
-
-	
+	new_coords := "&rMin=" + new_rMin //+"&rMax="+fmt.Sprintf("%f",0.125)+"&iMin="+fmt.Sprintf("%f",-0.5)+"&iMax="+fmt.Sprintf("%f",0.5)
 
 	// Create channel
 	ch := make(chan Pair)
@@ -223,7 +221,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		log.Printf("url")
 		// fmt.Print(new_coords)
 		peer := serverPool.GetNextPeer()
-		go getResponse(peer.URL.String() + "/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns), ch, x)
+		go getResponse(peer.URL.String()+"/mandel/?x_1="+strconv.Itoa(x*n_columns)+"&x_2="+strconv.Itoa((x+1)*n_columns)+new_coords, ch, x)
 
 	}
 
