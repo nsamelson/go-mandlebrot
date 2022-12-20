@@ -1,0 +1,23 @@
+version: "4.14"
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+      context: backends
+      target: dev
+    volumes:
+      - ./backends:/opt/app/api
+    environment:
+      API_SERVER_ADDR: ":3031"
+    ports:
+      - "3031:3031"
+
+  lb:
+    build: 
+      dockerfile: Dockerfile
+      context: loadbalancer
+
+    container_name: lb
+    ports:
+      - "3030:3030"
+    command: --backends "http://web1:80,http://web2:80,http://web3:80"
