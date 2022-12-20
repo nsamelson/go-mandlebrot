@@ -175,17 +175,16 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	n_columns := 100
 
 	// get vaules from url parameters
-	fmt.Println("AAAAAAAAAAAAA")
 
 	values := r.URL.Query()
 	for k, v := range values {
 		fmt.Println(k, " => ", v)
 	}
-	// x, _ := strconv.Atoi(values["x"][0])
-	// y, _ := strconv.Atoi(values["y"][0])
-
-	x := 400
-	y := 400
+	x, _ := strconv.Atoi(values["x"][0])
+	y, _ := strconv.Atoi(values["y"][0])
+	z, _ := strconv.ParseFloat(values["z"][0], 32)
+	// x := 400
+	// y := 400
 
 	// compute ratio
 	ratio_x := x / width
@@ -204,10 +203,10 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	new_center_i := center_i * float64(ratio_y)
 
 	// new plan coordinates
-	new_rMin := new_center_r - math.Abs(r_range)/4
-	new_rMax := new_center_r + math.Abs(r_range)/4
-	new_iMin := new_center_i - math.Abs(i_range)/4
-	new_iMax := new_center_i + math.Abs(i_range)/4
+	new_rMin := new_center_r - math.Abs(r_range)/(2*z)
+	new_rMax := new_center_r + math.Abs(r_range)/(2*z)
+	new_iMin := new_center_i - math.Abs(i_range)/(2*z)
+	new_iMax := new_center_i + math.Abs(i_range)/(2*z)
 
 	// Parameters in a string
 	str_new_rMin := fmt.Sprintf("%f", new_rMin)
