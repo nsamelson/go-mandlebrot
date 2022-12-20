@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"math"
+
 	// "math"
 	// "sort"
 	"encoding/json"
@@ -182,35 +184,38 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	// x, _ := strconv.Atoi(values["x"][0])
 	// y, _ := strconv.Atoi(values["y"][0])
 
-	// x := 400
-	// y := 400
+	x := 400
+	y := 400
 
 	// compute ratio
-	// ratio_x := x / width
-	// ratio_y := y / 800 // heigth
+	ratio_x := x / width
+	ratio_y := y / 800 // heigth
 
 	// // compute actual plan range
-	// r_range := rMin - rMax
-	// i_range := iMin - iMax
+	r_range := rMin - rMax
+	i_range := iMin - iMax
 
 	// actual center
-	// center_r:= r_range /2
-	// center_i := i_range /2
+	center_r := r_range / 2
+	center_i := i_range / 2
 
 	// new center
-	// new_center_r := center_r * float64(ratio_x)
-	// new_center_i := center_i * float64(ratio_y)
+	new_center_r := center_r * float64(ratio_x)
+	new_center_i := center_i * float64(ratio_y)
 
 	// new plan coordinates
-	// new_rMin := new_center_r - math.Abs(r_range) /4
-	// new_rMax := new_center_r + math.Abs(r_range) /4
-	// new_iMin := new_center_i - math.Abs(i_range) /4
-	// new_iMax := new_center_i + math.Abs(i_range) /4
+	new_rMin := new_center_r - math.Abs(r_range)/4
+	new_rMax := new_center_r + math.Abs(r_range)/4
+	new_iMin := new_center_i - math.Abs(i_range)/4
+	new_iMax := new_center_i + math.Abs(i_range)/4
 
 	// Parameters in a string
-	new_rMin := fmt.Sprintf("%f", 1.125)
+	str_new_rMin := fmt.Sprintf("%f", new_rMin)
+	str_new_rMax := fmt.Sprintf("%f", new_rMax)
+	str_new_iMin := fmt.Sprintf("%f", new_iMin)
+	str_new_iMax := fmt.Sprintf("%f", new_iMax)
 	// test := strconv.FormatFloat(-1.125, 'g', 5, 64)
-	new_coords := "&rMin=" + new_rMin //+"&rMax="+fmt.Sprintf("%f",0.125)+"&iMin="+fmt.Sprintf("%f",-0.5)+"&iMax="+fmt.Sprintf("%f",0.5)
+	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
 
 	// Create channel
 	ch := make(chan Pair)
