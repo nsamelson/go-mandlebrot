@@ -4,7 +4,7 @@ package main
 
 import (
 	"context"
-	"math"
+	// "math"
 
 	// "math"
 	// "sort"
@@ -162,6 +162,7 @@ func getResponse(url string, ch chan<- Pair, order int) {
 
 }
 
+
 // lb load balances the incoming request
 func lb(w http.ResponseWriter, r *http.Request) {
 	attempts := GetAttemptsFromContext(r)
@@ -180,33 +181,35 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	for k, v := range values {
 		fmt.Println(k, " => ", v)
 	}
-	x, _ := strconv.Atoi(values["x"][0])
-	y, _ := strconv.Atoi(values["y"][0])
-	z, _ := strconv.ParseFloat(values["z"][0], 32)
-	// x := 400
-	// y := 400
+	x_px, _ := strconv.ParseFloat(values["x"][0], 32)
+	y_px, _ := strconv.ParseFloat(values["y"][0], 32)
+	z_px, _ := strconv.ParseFloat(values["z"][0], 32)
 
-	// compute ratio
-	ratio_x := x / width
-	ratio_y := y / 800 // heigth
+	new_rMin := rMin /z_px + (x_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
+	new_rMax := rMin /z_px + (x_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
+	new_iMin := iMin /z_px + (y_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
+	new_iMax := iMin /z_px + (y_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
+	// // compute ratio
+	// ratio_x := x_px / width
+	// ratio_y := y_px / 800 // heigth
 
-	// // compute actual plan range
-	r_range := rMin - rMax
-	i_range := iMin - iMax
+	// // // compute actual plan range
+	// r_range := rMin - rMax
+	// i_range := iMin - iMax
 
-	// actual center
-	center_r := r_range / 2
-	center_i := i_range / 2
+	// // actual center
+	// center_r := r_range / 2
+	// center_i := i_range / 2
 
-	// new center
-	new_center_r := center_r * float64(ratio_x)
-	new_center_i := center_i * float64(ratio_y)
+	// // new center
+	// new_center_r := center_r * float64(ratio_x)
+	// new_center_i := center_i * float64(ratio_y)
 
-	// new plan coordinates
-	new_rMin := new_center_r - math.Abs(r_range)/(2*z)
-	new_rMax := new_center_r + math.Abs(r_range)/(2*z)
-	new_iMin := new_center_i - math.Abs(i_range)/(2*z)
-	new_iMax := new_center_i + math.Abs(i_range)/(2*z)
+	// // new plan coordinates
+	// new_rMin := new_center_r - math.Abs(r_range)/(2*z_px)
+	// new_rMax := new_center_r + math.Abs(r_range)/(2*z_px)
+	// new_iMin := new_center_i - math.Abs(i_range)/(2*z_px)
+	// new_iMax := new_center_i + math.Abs(i_range)/(2*z_px)
 
 	// Parameters in a string
 	str_new_rMin := fmt.Sprintf("%f", new_rMin)
@@ -221,9 +224,7 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 	// divide the work by sending multiple columns for each node in async
 	for x := 0; x < width/n_columns; x++ {
-		fmt.Println("AAAAAAAAAAAAA")
-		log.Printf("url")
-		// fmt.Print(new_coords)
+
 		peer := serverPool.GetNextPeer()
 		go getResponse(peer.URL.String()+"/mandel/?x_1="+strconv.Itoa(x*n_columns)+"&x_2="+strconv.Itoa((x+1)*n_columns)+new_coords, ch, x)
 

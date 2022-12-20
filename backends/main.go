@@ -6,13 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-
-	// "image"
-	// "image/color"
-	// "image/draw"
-	// "image/png"
-	// "io/ioutil"
-	// "os"
 	"log"
 	"math/cmplx"
 	"net/http"
@@ -35,14 +28,10 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 
-	fmt.Println(r.URL)
-	//TODO: get url parameters and copute mandel
-
-	// link : http://localhost:3031/mandel/?x=21&y=22
+	// get the parameters from the url : http://localhost:3031/mandel/?x=21&y=22
 	values := r.URL.Query()
-	for k, v := range values {
-		fmt.Println(k, " => ", v)
-	}
+
+	// range of columns of pixels to compute
 	x_1, _ := strconv.Atoi(values["x_1"][0])
 	x_2, _ := strconv.Atoi(values["x_2"][0])
 
@@ -71,6 +60,7 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 		mandelArray[x] = make([]float64, height)
 	}
 
+	// compute mandelbrot
 	for x := 0; x < x_range; x++ {
 		for y := 0; y < height; y++ {
 			c := mandelbrot(complex(
