@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"math"
 	// "sort"
 	"encoding/json"
 	"flag"
@@ -138,12 +139,13 @@ func GetRetryFromContext(r *http.Request) int {
 }
 
 type Pair struct {
-	body []byte
+	body  []byte
 	order int
 }
 
 // Send Async request and push it into the channel
-func getResponse(url string,ch chan<-Pair, order int){
+func getResponse(url string, ch chan<- Pair, order int) {
+	log.Printf(url + "AAAAAAA")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
@@ -154,8 +156,8 @@ func getResponse(url string,ch chan<-Pair, order int){
 	if err != nil {
 		log.Fatalln(err)
 	}
-	
-	ch <- Pair{body,order}
+
+	ch <- Pair{body, order}
 
 }
 
@@ -170,17 +172,60 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 	const width = 1000
 	n_columns := 100
+
+	// get vaules from url parameters
+	fmt.Println("AAAAAAAAAAAAA")
+
+	values := r.URL.Query()
+	for k, v := range values {
+		fmt.Println(k, " => ", v)
+	}
+	// x, _ := strconv.Atoi(values["x"][0])
+	// y, _ := strconv.Atoi(values["y"][0])
 	
+	// x := 400
+	// y := 400
+
+	// compute ratio
+	// ratio_x := x / width
+	// ratio_y := y / 800 // heigth
+
+	// // compute actual plan range
+	// r_range := rMin - rMax
+	// i_range := iMin - iMax
+
+	// actual center
+	// center_r:= r_range /2
+	// center_i := i_range /2
+
+	// new center
+	// new_center_r := center_r * float64(ratio_x)
+	// new_center_i := center_i * float64(ratio_y)
+
+	// new plan coordinates
+	// new_rMin := new_center_r - math.Abs(r_range) /4
+	// new_rMax := new_center_r + math.Abs(r_range) /4
+	// new_iMin := new_center_i - math.Abs(i_range) /4
+	// new_iMax := new_center_i + math.Abs(i_range) /4
+
+	// Parameters in a string
+	// new_rMin := fmt.Sprintf("%f",)
+	test := strconv.FormatFloat(-1.125, 'g', 5, 64)
+	// new_coords := "&rMin="+new_rMin //+"&rMax="+fmt.Sprintf("%f",0.125)+"&iMin="+fmt.Sprintf("%f",-0.5)+"&iMax="+fmt.Sprintf("%f",0.5)
+
 	
+
 	// Create channel
 	ch := make(chan Pair)
 
 	// divide the work by sending multiple columns for each node in async
 	for x := 0; x < width/n_columns; x++ {
+		fmt.Println("AAAAAAAAAAAAA")
+		log.Printf("url")
+		// fmt.Print(new_coords)
+		peer := serverPool.GetNextPeer()
+		go getResponse(peer.URL.String() + "/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns) + "&rMin=aa", ch, x)
 
-		peer := serverPool.GetNextPeer()		
-		go getResponse(peer.URL.String()+"/mandel/?x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns), ch,x)
-			
 	}
 
 	// draw image
@@ -189,30 +234,30 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	bounds := image.Rect(0, 0, width, height)
 	b := image.NewNRGBA(bounds)
 	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
-	
+
 	// Read channel and set color for each pixel
-	for i := 0; i < width/n_columns; i++{
+	for i := 0; i < width/n_columns; i++ {
 
 		// get first Pair in channel and get rid of it
-		channel:= <-ch
+		channel := <-ch
 		x := channel.order * n_columns
 
 		var array [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
 		json.Unmarshal(channel.body, &array)
 
-			for x_1 := 0; x_1 < n_columns; x_1++ {
-				for y := 0; y < height; y++ {
+		for x_1 := 0; x_1 < n_columns; x_1++ {
+			for y := 0; y < height; y++ {
 
-					c := array[x_1][y]
+				c := array[x_1][y]
 
-					cr := uint8(float64(red) * c)
-					cg := uint8(float64(green) * c)
-					cb := uint8(float64(blue) * c)
+				cr := uint8(float64(red) * c)
+				cg := uint8(float64(green) * c)
+				cb := uint8(float64(blue) * c)
 
-					b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+				b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
 
-				}
 			}
+		}
 	}
 
 	// create image
@@ -232,7 +277,6 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	buf, _ := ioutil.ReadFile("mandelbrot.png")
 	w.Header().Set("Content-Type", "mandelbrot.png")
 	w.Write(buf)
-
 
 }
 
