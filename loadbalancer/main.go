@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	// "math"
+	// "math"
 	// "sort"
 	"encoding/json"
 	"flag"
@@ -177,7 +178,6 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	n_columns := 200
 
 	// get vaules from url parameters
-
 	values := r.URL.Query()
 	for k, v := range values {
 		fmt.Println(k, " => ", v)
@@ -186,48 +186,17 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	y_px, _ := strconv.ParseFloat(values["y"][0], 32)
 	z_px, _ := strconv.ParseFloat(values["z"][0], 32)
 
-	// kinda working (can divide first argument by z or mutliply the second one by z to have another result)
+	// Transform x,y position into imaginary plane coordinates
 	new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
 	new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
 	new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
 	new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
-
-	
-	// old try
-	// // compute imaginary plan range
-	// r_range := math.Abs(rMax - rMin)
-	// i_range := math.Abs(iMax - iMin)
-
-	// // actual center
-	// center_r := (rMax + rMin) / 2
-	// center_i := (iMax + iMin) / 2
-
-	// // new imaginary range
-	// new_r_range := r_range / z_px
-	// new_i_range := i_range / z_px
-
-	// // new center
-	// new_center_r := x_px / (width  * r_range) + center_r
-	// new_center_i := y_px / (height * i_range) + center_i
-
-	// // new plan coordinates
-	// new_rMin := new_center_r - new_r_range / 2
-	// new_rMax := new_center_r + new_r_range / 2
-	// new_iMin := new_center_i - new_i_range / 2
-	// new_iMax := new_center_i + new_i_range / 2
-
-	// to remember our new position
-	rMin   = new_rMin
-	rMax   = new_rMax
-	iMin   = new_iMin
-	iMax   = new_iMax
 
 	// Parameters in a string
 	str_new_rMin := fmt.Sprintf("%f", new_rMin)
 	str_new_rMax := fmt.Sprintf("%f", new_rMax)
 	str_new_iMin := fmt.Sprintf("%f", new_iMin)
 	str_new_iMax := fmt.Sprintf("%f", new_iMax)
-	// test := strconv.FormatFloat(-1.125, 'g', 5, 64)
 	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
 
 	// Create channel
