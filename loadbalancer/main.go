@@ -177,14 +177,31 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	const width = 1000
 	n_columns := 200
 
-	// get vaules from url parameters
-	values := r.URL.Query()
-	for k, v := range values {
-		fmt.Println(k, " => ", v)
+	x_px := 500.
+	y_px := 400.
+	z_px := 1.
+
+	// Check if the URL has a non-empty raw query string
+	if r.URL.RawQuery != "" {
+		fmt.Println("URL has query parameters")
+
+		// get vaules from url parameters
+		values := r.URL.Query()
+
+		// for k, v := range values {
+		// 	fmt.Println(k, " => ", v)
+		// }
+
+		if xStr := values.Get("x"); xStr != "" {
+			x_px, _ = strconv.ParseFloat(xStr, 32)
+		}
+		if yStr := values.Get("y"); yStr != "" {
+			y_px, _ = strconv.ParseFloat(yStr, 32)
+		}
+		if zStr := values.Get("z"); zStr != "" {
+			z_px, _ = strconv.ParseFloat(zStr, 32)
+		}
 	}
-	x_px, _ := strconv.ParseFloat(values["x"][0], 32)
-	y_px, _ := strconv.ParseFloat(values["y"][0], 32)
-	z_px, _ := strconv.ParseFloat(values["z"][0], 32)
 
 	// Transform x,y position into imaginary plane coordinates
 	new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
