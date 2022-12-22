@@ -200,6 +200,11 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		}
 		if zStr := values.Get("z"); zStr != "" {
 			z_px, _ = strconv.ParseFloat(zStr, 32)
+
+			// avoid division by 0
+			if z_px == 0 {
+				z_px =1
+			}
 		}
 	}
 
