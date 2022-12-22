@@ -85,12 +85,12 @@ func checkBackends(backends []string){
 		resp, err := http.Get(backend)
 		if err != nil {
 			// If there is an error making the request, print an error message.
-			fmt.Printf("Error checking backend %s: %v\n", backend, err)
+			fmt.Println("Error checking backend %s: %v\n", backend, err)
 			continue
 		}
 		defer resp.Body.Close()
 
-		fmt.Printf("Backend %s: is alive", backend)
+		fmt.Println("Backend %s: is alive", backend)
 		// If the request is successful, add the backend to the list of healthy backends.
 		_healthyBackends = append(_healthyBackends, backend)
 	}
