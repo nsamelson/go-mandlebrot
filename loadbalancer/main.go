@@ -1,12 +1,6 @@
 package main
 
-// https://kasvith.me/posts/lets-create-a-simple-lb-go/
-
 import (
-	"context"
-	// "math"
-	// "math"
-	// "sort"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -14,24 +8,16 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"time"
 	"io/ioutil"
 	"log"
-	"net"
+	"math/rand"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
-const (
-	Attempts int = iota
-	Retry
-)
 const (
 	maxEsc = 100
 	width  = 1000
@@ -39,109 +25,17 @@ const (
 	red    = 800
 	green  = 600
 	blue   = 700
-)
-var (
+
 	rMin   = -2.
 	rMax   = .5
 	iMin   = -1.
 	iMax   = 1.
 )
 
-// Backend holds the data about a server
-type Backend struct {
-	URL          *url.URL
-	Alive        bool
-	mux          sync.RWMutex
-	ReverseProxy *httputil.ReverseProxy
-}
+var (
+	healthyBackends = []string{}
 
-// SetAlive for this backend
-func (b *Backend) SetAlive(alive bool) {
-	b.mux.Lock()
-	b.Alive = alive
-	b.mux.Unlock()
-}
-
-// IsAlive returns true when backend is alive
-func (b *Backend) IsAlive() (alive bool) {
-	b.mux.RLock()
-	alive = b.Alive
-	b.mux.RUnlock()
-	return
-}
-
-// ServerPool holds information about reachable backends
-type ServerPool struct {
-	backends []*Backend
-	current  uint64
-}
-
-// AddBackend to the server pool
-func (s *ServerPool) AddBackend(backend *Backend) {
-	s.backends = append(s.backends, backend)
-}
-
-// NextIndex atomically increase the counter and return an index
-func (s *ServerPool) NextIndex() int {
-	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
-}
-
-// MarkBackendStatus changes a status of a backend
-func (s *ServerPool) MarkBackendStatus(backendUrl *url.URL, alive bool) {
-	for _, b := range s.backends {
-		if b.URL.String() == backendUrl.String() {
-			b.SetAlive(alive)
-			break
-		}
-	}
-}
-
-// GetNextPeer returns next active peer to take a connection
-func (s *ServerPool) GetNextPeer() *Backend {
-	// loop entire backends to find out an Alive backend
-	next := s.NextIndex()
-	l := len(s.backends) + next // start from next and move a full cycle
-	for i := next; i < l; i++ {
-		idx := i % len(s.backends)     // take an index by modding
-		if s.backends[idx].IsAlive() { // if we have an alive backend, use it and store if its not the original one
-			if i != next {
-				atomic.StoreUint64(&s.current, uint64(idx))
-			}
-			return s.backends[idx]
-		}
-	}
-	return nil
-}
-
-// HealthCheck pings the backends and update the status
-func (s *ServerPool) HealthCheck() {
-	for _, b := range s.backends {
-		status := "up"
-		alive := isBackendAlive(b.URL)
-		b.SetAlive(alive)
-		if !alive {
-			status = "down"
-		}
-		log.Printf("%s [%s]\n", b.URL, status)
-	}
-}
-
-// GetAttemptsFromContext returns the attempts for request
-func GetAttemptsFromContext(r *http.Request) int {
-	if attempts, ok := r.Context().Value(Attempts).(int); ok {
-		return attempts
-	}
-	return 1
-}
-
-// GetAttemptsFromContext returns the attempts for request
-func GetRetryFromContext(r *http.Request) int {
-	if retry, ok := r.Context().Value(Retry).(int); ok {
-		return retry
-	}
-	return 0
-}
-
+)
 type Pair struct {
 	body  []byte
 	order int
@@ -149,235 +43,219 @@ type Pair struct {
 
 // Send Async request and push it into the channel
 func getResponse(url string, ch chan<- Pair, order int) {
+
+	// send http request
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	// get body content
 	body, err := ioutil.ReadAll(resp.Body)
-
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	// add response to channel
 	ch <- Pair{body, order}
 
 }
 
+// HealthCheck pings the backends and update the status
+func healthCheck(backends []string) {
+	
 
-// lb load balances the incoming request
-func lb(w http.ResponseWriter, r *http.Request) {
-	attempts := GetAttemptsFromContext(r)
-	if attempts > 3 {
-		log.Printf("%s(%s) Max attempts reached, terminating\n", r.RemoteAddr, r.URL.Path)
-		http.Error(w, "Service not available", http.StatusServiceUnavailable)
-		return
+	// Run health check the checkBackends function to run every 3 minutes.
+	ticker := time.NewTicker(1 * time.Minute)
+
+	for range ticker.C {
+
+		go checkBackends(backends)
+
+	}
+	
+}
+
+func checkBackends(backends []string){
+	fmt.Println("Running health check")
+
+	var _healthyBackends []string
+	// Loop through the backend addresses and make an HTTP request to each one.
+	for _, backend := range backends {
+		resp, err := http.Get(backend)
+		if err != nil {
+			// If there is an error making the request, print an error message.
+			fmt.Printf("Error checking backend %s: %v\n", backend, err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		fmt.Printf("Backend %s: is alive", backend)
+		// If the request is successful, add the backend to the list of healthy backends.
+		_healthyBackends = append(_healthyBackends, backend)
 	}
 
-	const width = 1000
-	n_columns := 200
+	healthyBackends = _healthyBackends
+}
 
-	x_px := 500.
-	y_px := 400.
-	z_px := 1.
 
-	// Check if the URL has a non-empty raw query string
-	if r.URL.RawQuery != "" {
-		fmt.Println("URL has query parameters")
+func loadBalancer(backends []string) http.HandlerFunc {
+	// Use a map to track the number of requests sent to each backend
+	backendRequestCount := make(map[string]int)
 
-		// get vaules from url parameters
-		values := r.URL.Query()
+	return func(w http.ResponseWriter, r *http.Request) {
 
-		// for k, v := range values {
-		// 	fmt.Println(k, " => ", v)
-		// }
+		// ALGO
+		const width = 1000
+		n_columns := 200
 
-		if xStr := values.Get("x"); xStr != "" {
-			x_px, _ = strconv.ParseFloat(xStr, 32)
-		}
-		if yStr := values.Get("y"); yStr != "" {
-			y_px, _ = strconv.ParseFloat(yStr, 32)
-		}
-		if zStr := values.Get("z"); zStr != "" {
-			z_px, _ = strconv.ParseFloat(zStr, 32)
+		// setup default parameters
+		x_px := 500.
+		y_px := 400.
+		z_px := 1.
 
-			// avoid division by 0
-			if z_px == 0 {
-				z_px =1
+		// Check if the URL has a non-empty raw query string
+		if r.URL.RawQuery != "" {
+			fmt.Println("URL has query parameters :")
+
+			// get vaules from url parameters
+			values := r.URL.Query()
+
+			for k, v := range values {
+				fmt.Println(k, " => ", v)
+			}
+
+			if xStr := values.Get("x"); xStr != "" {
+				x_px, _ = strconv.ParseFloat(xStr, 32)
+			}
+			if yStr := values.Get("y"); yStr != "" {
+				y_px, _ = strconv.ParseFloat(yStr, 32)
+			}
+			if zStr := values.Get("z"); zStr != "" {
+				z_px, _ = strconv.ParseFloat(zStr, 32)
+
+				// avoid division by 0
+				if z_px == 0 {
+					z_px =1
+				}
 			}
 		}
-	}
 
-	// Transform x,y position into imaginary plane coordinates
-	new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
-	new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
-	new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
-	new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
+		// Transform x,y position into imaginary plane coordinates
+		new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
+		new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
+		new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
+		new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
 
-	// Parameters in a string
-	str_new_rMin := fmt.Sprintf("%f", new_rMin)
-	str_new_rMax := fmt.Sprintf("%f", new_rMax)
-	str_new_iMin := fmt.Sprintf("%f", new_iMin)
-	str_new_iMax := fmt.Sprintf("%f", new_iMax)
-	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
+		// Parameters in a string
+		str_new_rMin := fmt.Sprintf("%f", new_rMin)
+		str_new_rMax := fmt.Sprintf("%f", new_rMax)
+		str_new_iMin := fmt.Sprintf("%f", new_iMin)
+		str_new_iMax := fmt.Sprintf("%f", new_iMax)
+		new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
 
-	// Create channel
-	ch := make(chan Pair)
+		// Create channel
+		ch := make(chan Pair)
 
-	// divide the work by sending multiple columns for each node in async
-	for x := 0; x < width/n_columns; x++ {
 
-		peer := serverPool.GetNextPeer()
-		go getResponse(peer.URL.String()+"/mandel/?x_1="+strconv.Itoa(x*n_columns)+"&x_2="+strconv.Itoa((x+1)*n_columns)+new_coords, ch, x)
+		// divide the work by sending multiple columns for each node in async
+		for x := 0; x < width/n_columns; x++ {
 
-	}
+			backend := backends[rand.Intn(len(backends))]
 
-	// draw image
-	// scale := width / (rMax - rMin)
-	// height := int(scale * (iMax - iMin))
-	bounds := image.Rect(0, 0, width, height)
-	b := image.NewNRGBA(bounds)
-	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
+			// Increment the request count for the selected backend
+			backendRequestCount[backend]++
 
-	// Read channel and set color for each pixel
-	for i := 0; i < width/n_columns; i++ {
+			// Set the url with the host corresponding to the backend
+			new_url := backend + "/mandel/?" + "x_1=" + strconv.Itoa(x*n_columns) + "&x_2=" + strconv.Itoa((x+1)*n_columns) + new_coords
 
-		// get first Pair in channel and get rid of it
-		channel := <-ch
-		x := channel.order * n_columns
+			// fmt.Println(new_url)
+			// peer := serverPool.GetNextPeer()
+			go getResponse(new_url, ch, x)
 
-		var array [width][height]float64
-		json.Unmarshal(channel.body, &array)
+		}
 
-		for x_1 := 0; x_1 < n_columns; x_1++ {
-			for y := 0; y < height; y++ {
 
-				c := array[x_1][y]
+		// draw image
+		bounds := image.Rect(0, 0, width, height)
+		b := image.NewNRGBA(bounds)
+		draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
 
-				cr := uint8(float64(red) * c)
-				cg := uint8(float64(green) * c)
-				cb := uint8(float64(blue) * c)
+		// Read channel and set color for each pixel
+		for i := 0; i < width/n_columns; i++ {
 
-				b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+			// get first Pair in channel and get rid of it
+			channel := <-ch
+			x := channel.order * n_columns
 
+			var array [width][height]float64
+			json.Unmarshal(channel.body, &array)
+
+			for x_1 := 0; x_1 < n_columns; x_1++ {
+				for y := 0; y < height; y++ {
+
+					c := array[x_1][y]
+
+					cr := uint8(float64(red) * c)
+					cg := uint8(float64(green) * c)
+					cb := uint8(float64(blue) * c)
+
+					b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+
+				}
 			}
 		}
-	}
-
-	// create image
-	f, err := os.Create("mandelbrot.png")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err = png.Encode(f, b); err != nil {
-		fmt.Println(err)
-	}
-	if err = f.Close(); err != nil {
-		fmt.Println(err)
-	}
-
-	// render image
-	buf, _ := ioutil.ReadFile("mandelbrot.png")
-	w.Header().Set("Content-Type", "mandelbrot.png")
-	w.Write(buf)
-
-}
-
-// isAlive checks whether a backend is Alive by establishing a TCP connection
-func isBackendAlive(u *url.URL) bool {
-	timeout := 2 * time.Second
-	conn, err := net.DialTimeout("tcp", u.Host, timeout)
-	if err != nil {
-		log.Println("Site unreachable, error: ", err)
-		return false
-	}
-	defer conn.Close()
-	return true
-}
-
-// healthCheck runs a routine for check status of the backends every 2 mins
-func healthCheck() {
-	t := time.NewTicker(time.Minute * 2)
-	for {
-		select {
-		case <-t.C:
-			log.Println("Starting health check...")
-			serverPool.HealthCheck()
-			log.Println("Health check completed")
+		// create image
+		f, err := os.Create("mandelbrot.png")
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
+		if err = png.Encode(f, b); err != nil {
+			fmt.Println(err)
+		}
+		if err = f.Close(); err != nil {
+			fmt.Println(err)
+		}
+
+		// render image
+		buf, _ := ioutil.ReadFile("mandelbrot.png")
+		w.Header().Set("Content-Type", "mandelbrot.png")
+		w.Write(buf)
+		
 	}
 }
 
-var serverPool ServerPool
 
-func Serve() {
-	var serverList string
+func main() {
+	// Set up a slice of backend servers to load balance between
+	var backendAddresses string
 	var port int
-	flag.StringVar(&serverList, "backends", "", "Load balanced backends, use commas to separate")
+	flag.StringVar(&backendAddresses, "backends", "", "comma-separated list of backend addresses")
 	flag.IntVar(&port, "port", 3030, "Port to serve")
-	flag.Parse()
 
-	if len(serverList) == 0 {
+	// Parse the command-line flags
+	flag.Parse()
+	
+
+	if len(backendAddresses) == 0 {
 		log.Fatal("Please provide one or more backends to load balance")
 	}
 
-	// parse servers
-	tokens := strings.Split(serverList, ",")
-	for _, tok := range tokens {
-		serverUrl, err := url.Parse(tok)
-		if err != nil {
-			log.Fatal(err)
-		}
+	// Split the backend addresses on commas
+	backends := strings.Split(backendAddresses, ",")
+	healthyBackends = backends
 
-		proxy := httputil.NewSingleHostReverseProxy(serverUrl)
-		proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
-			log.Printf("[%s] %s\n", serverUrl.Host, e.Error())
-			retries := GetRetryFromContext(request)
-			if retries < 3 {
-				select {
-				case <-time.After(10 * time.Millisecond):
-					ctx := context.WithValue(request.Context(), Retry, retries+1)
-					proxy.ServeHTTP(writer, request.WithContext(ctx))
-				}
-				return
-			}
+	// run healthceck
+	go healthCheck(backends)
 
-			// after 3 retries, mark this backend as down
-			serverPool.MarkBackendStatus(serverUrl, false)
 
-			// if the same request routing for few attempts with different backends, increase the count
-			attempts := GetAttemptsFromContext(request)
-			log.Printf("%s(%s) Attempting retry %d\n", request.RemoteAddr, request.URL.Path, attempts)
-			ctx := context.WithValue(request.Context(), Attempts, attempts+1)
-			lb(writer, request.WithContext(ctx))
-		}
+	// Create a request multiplexer and register the load balancer handler
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", loadBalancer(backends))
 
-		serverPool.AddBackend(&Backend{
-			URL:          serverUrl,
-			Alive:        true,
-			ReverseProxy: proxy,
-		})
-		log.Printf("Configured server: %s\n", serverUrl)
-	}
+	// Start the server
+	fmt.Println("Load balancer listening on :3030")
+	http.ListenAndServe(":3030", mux)
 
-	// create http server
-	server := http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: http.HandlerFunc(lb),
-	}
-
-	// start health checking
-	go healthCheck()
-
-	log.Printf("Load Balancer started at :%d\n", port)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func main() {
-	fmt.Printf("starting things \n")
-
-	Serve()
 }
