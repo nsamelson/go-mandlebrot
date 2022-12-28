@@ -1,6 +1,9 @@
 package main
 
 import (
+	"math"
+	// "math"
+	// "sort"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,7 +11,6 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
-	"time"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -16,26 +18,31 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	maxEsc = 100
+	Attempts int = iota
+	Retry
+)
+const (
+	// maxEsc = 100
 	width  = 1000
 	height = 800
 	red    = 800
 	green  = 600
 	blue   = 700
 
-	rMin   = -2.
-	rMax   = .5
-	iMin   = -1.
-	iMax   = 1.
+	rMin = -2.
+	rMax = .5
+	iMin = -1.
+	iMax = 1.
 )
 
 var (
 	healthyBackends = []string{}
-
 )
+
 type Pair struct {
 	body  []byte
 	order int
@@ -63,7 +70,6 @@ func getResponse(url string, ch chan<- Pair, order int) {
 
 // HealthCheck pings the backends and update the status
 func healthCheck(backends []string) {
-	
 
 	// Run health check the checkBackends function to run every 3 minutes.
 	ticker := time.NewTicker(1 * time.Minute)
@@ -73,10 +79,10 @@ func healthCheck(backends []string) {
 		go checkBackends(backends)
 
 	}
-	
+
 }
 
-func checkBackends(backends []string){
+func checkBackends(backends []string) {
 	fmt.Println("Running health check")
 
 	var _healthyBackends []string
@@ -97,7 +103,6 @@ func checkBackends(backends []string){
 
 	healthyBackends = _healthyBackends
 }
-
 
 func loadBalancer(backends []string) http.HandlerFunc {
 	// Use a map to track the number of requests sent to each backend
@@ -136,7 +141,7 @@ func loadBalancer(backends []string) http.HandlerFunc {
 
 				// avoid division by 0
 				if z_px == 0 {
-					z_px =1
+					z_px = 1
 				}
 			}
 		}
@@ -152,11 +157,12 @@ func loadBalancer(backends []string) http.HandlerFunc {
 		str_new_rMax := fmt.Sprintf("%f", new_rMax)
 		str_new_iMin := fmt.Sprintf("%f", new_iMin)
 		str_new_iMax := fmt.Sprintf("%f", new_iMax)
-		new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
+		str_new_maxEsc := fmt.Sprintf("%f", 100+math.Log2(z_px))
+
+		new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax + "&maxEsc=" + str_new_maxEsc
 
 		// Create channel
 		ch := make(chan Pair)
-
 
 		// divide the work by sending multiple columns for each node in async
 		for x := 0; x < width/n_columns; x++ {
@@ -174,7 +180,6 @@ func loadBalancer(backends []string) http.HandlerFunc {
 			go getResponse(new_url, ch, x)
 
 		}
-
 
 		// draw image
 		bounds := image.Rect(0, 0, width, height)
@@ -222,10 +227,9 @@ func loadBalancer(backends []string) http.HandlerFunc {
 		buf, _ := ioutil.ReadFile("mandelbrot.png")
 		w.Header().Set("Content-Type", "mandelbrot.png")
 		w.Write(buf)
-		
+
 	}
 }
-
 
 func main() {
 	// Set up a slice of backend servers to load balance between
@@ -236,7 +240,6 @@ func main() {
 
 	// Parse the command-line flags
 	flag.Parse()
-	
 
 	if len(backendAddresses) == 0 {
 		log.Fatal("Please provide one or more backends to load balance")
@@ -248,7 +251,6 @@ func main() {
 
 	// run healthceck
 	go healthCheck(backends)
-
 
 	// Create a request multiplexer and register the load balancer handler
 	mux := http.NewServeMux()

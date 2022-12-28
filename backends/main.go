@@ -11,8 +11,8 @@ import (
 	"net/http"
 )
 
-const (
-	maxEsc = 100
+var (
+	maxEsc = 100.
 )
 
 func mandelHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +34,8 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	rMax, _ := strconv.ParseFloat(values["rMax"][0], 32)
 	iMin, _ := strconv.ParseFloat(values["iMin"][0], 32)
 	iMax, _ := strconv.ParseFloat(values["iMax"][0], 32)
+	maxEsc, _ = strconv.ParseFloat(values["maxEsc"][0], 32)
+
 
 	// mandelbrot parameters
 	var (
@@ -78,8 +80,8 @@ func main() {
 
 func mandelbrot(a complex128) float64 {
 	i := 0
-	for z := a; cmplx.Abs(z) < 2 && i < maxEsc; i++ {
+	for z := a; cmplx.Abs(z) < 2 && i < int(maxEsc); i++ {
 		z = z*z + a
 	}
-	return float64(maxEsc-i) / maxEsc
+	return (maxEsc- float64(i)) / maxEsc
 }
