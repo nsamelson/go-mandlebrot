@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	// "math/big"
 	// "math"
 	// "sort"
 	"encoding/json"
@@ -131,13 +132,13 @@ func loadBalancer(backends []string) http.HandlerFunc {
 			}
 
 			if xStr := values.Get("x"); xStr != "" {
-				x_px, _ = strconv.ParseFloat(xStr, 32)
+				x_px, _ = strconv.ParseFloat(xStr, 64)
 			}
 			if yStr := values.Get("y"); yStr != "" {
-				y_px, _ = strconv.ParseFloat(yStr, 32)
+				y_px, _ = strconv.ParseFloat(yStr, 64)
 			}
 			if zStr := values.Get("z"); zStr != "" {
-				z_px, _ = strconv.ParseFloat(zStr, 32)
+				z_px, _ = strconv.ParseFloat(zStr, 64)
 
 				// avoid division by 0
 				if z_px == 0 {
@@ -149,15 +150,15 @@ func loadBalancer(backends []string) http.HandlerFunc {
 		// Transform x,y position into imaginary plane coordinates
 		new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
 		new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
-		new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
-		new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
+		new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (height * z_px)) - ((iMax - iMin) / (2 * z_px))
+		new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (height * z_px)) + ((iMax - iMin) / (2 * z_px))
 
 		// Parameters in a string
-		str_new_rMin := fmt.Sprintf("%f", new_rMin)
-		str_new_rMax := fmt.Sprintf("%f", new_rMax)
-		str_new_iMin := fmt.Sprintf("%f", new_iMin)
-		str_new_iMax := fmt.Sprintf("%f", new_iMax)
-		str_new_maxEsc := fmt.Sprintf("%f", 100+math.Log2(z_px))
+		str_new_rMin := fmt.Sprintf("%.15f", new_rMin)
+		str_new_rMax := fmt.Sprintf("%.15f", new_rMax)
+		str_new_iMin := fmt.Sprintf("%.15f", new_iMin)
+		str_new_iMax := fmt.Sprintf("%.15f", new_iMax)
+		str_new_maxEsc := fmt.Sprintf("%.6f", 100+math.Log2(z_px))
 
 		new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax + "&maxEsc=" + str_new_maxEsc
 

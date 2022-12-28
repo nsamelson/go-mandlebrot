@@ -30,10 +30,10 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	x_2, _ := strconv.Atoi(values["x_2"][0])
 
 	// new plan coordinates
-	rMin, _ := strconv.ParseFloat(values["rMin"][0], 32)
-	rMax, _ := strconv.ParseFloat(values["rMax"][0], 32)
-	iMin, _ := strconv.ParseFloat(values["iMin"][0], 32)
-	iMax, _ := strconv.ParseFloat(values["iMax"][0], 32)
+	rMin, _ := strconv.ParseFloat(values["rMin"][0], 64)
+	rMax, _ := strconv.ParseFloat(values["rMax"][0], 64)
+	iMin, _ := strconv.ParseFloat(values["iMin"][0], 64)
+	iMax, _ := strconv.ParseFloat(values["iMax"][0], 64)
 	maxEsc, _ = strconv.ParseFloat(values["maxEsc"][0], 32)
 
 
