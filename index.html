@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    <title>Mandelbrot</title>
+</head>
+<body style="background-color: rgb(17, 16, 16);">
+    <br>
+    <h1 class="text-center mb-1" style="color:rgb(245, 219, 163)" >Mandelbrot viewer</h1>
+    <br>
+    <p style="color:rgb(245, 219, 163); font-size: 25px;" class="text-center mb-1 mt-10">Use <img src="static/keys.png" alt="" style='width: 70px; height:50px;'> to navigate the image</p>
+    <br>
+    <p style="color:rgb(245, 219, 163); font-size: 25px;" class="text-center mb-1">Use <img src="static/a.png" alt="" style='width: 40px; height:40px;'> and <img src="static/z.png" alt="" style='width: 40px; height:40px;'> to Zoom in / Zoom out</p>
+    <br>
+    <br>
+    <img id="fractal_img" style='width: 1000px; height:800px;' src="http://localhost:3030/?x=500&y=400&z=1" class="rounded mx-auto d-block mt-3"></img>
+    <button class="btn"></button>
+</body>
+
+<script>
+    x=500
+    y=400
+    z=1
+    image = document.getElementById("fractal_img")
+    
+    document.onkeydown = function(e) {
+        switch (e.keyCode) {
+            case 37:
+                x -= 20/z;
+                updateImage();
+                break;
+            case 38:
+                y -= 20/z;
+                updateImage();
+                break;
+            case 39:
+                x += 20/z;
+                updateImage();
+                break;
+            case 40:
+                y += 20/z;
+                updateImage();
+                break;
+
+            case 65:
+                z *= 2;
+                updateImage();
+                break;
+            case 90:
+                z /= 2;
+                updateImage();
+                break;
+        }
+    };
+    
+    function updateImage(){
+        image.src= 'http://localhost:3030/?x=' + x + '&y=' + y + '&z=' + z 
+    }
+    
+</script>
+
+<!-- <script>
+    var map = L.map('map', {
+        crs: L.CRS.Simple
+    }).setView([500, 400], 1);
+    var bounds = [[0,0], [1000,1000]];
+    L.tileLayer('http://localhost:3030/?x={x}&y={y}&z={z}', {
+        bounds: bounds,
+        maxZoom: 19,
+    }).addTo(map);
+</script> -->
+</html>

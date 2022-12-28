@@ -1,15 +1,27 @@
 package main
+
 // https://kasvith.me/posts/lets-create-a-simple-lb-go/
 
 import (
 	"context"
+	"math"
+	// "math"
+	// "sort"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +31,20 @@ import (
 const (
 	Attempts int = iota
 	Retry
+)
+const (
+	// maxEsc = 100
+	width  = 1000
+	height = 800
+	red    = 800
+	green  = 600
+	blue   = 700
+)
+var (
+	rMin   = -2.
+	rMax   = .5
+	iMin   = -1.
+	iMax   = 1.
 )
 
 // Backend holds the data about a server
@@ -76,7 +102,7 @@ func (s *ServerPool) GetNextPeer() *Backend {
 	next := s.NextIndex()
 	l := len(s.backends) + next // start from next and move a full cycle
 	for i := next; i < l; i++ {
-		idx := i % len(s.backends) // take an index by modding
+		idx := i % len(s.backends)     // take an index by modding
 		if s.backends[idx].IsAlive() { // if we have an alive backend, use it and store if its not the original one
 			if i != next {
 				atomic.StoreUint64(&s.current, uint64(idx))
@@ -116,6 +142,29 @@ func GetRetryFromContext(r *http.Request) int {
 	return 0
 }
 
+type Pair struct {
+	body  []byte
+	order int
+}
+
+// Send Async request and push it into the channel
+func getResponse(url string, ch chan<- Pair, order int) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	ch <- Pair{body, order}
+
+}
+
+
 // lb load balances the incoming request
 func lb(w http.ResponseWriter, r *http.Request) {
 	attempts := GetAttemptsFromContext(r)
@@ -125,12 +174,116 @@ func lb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer := serverPool.GetNextPeer()
-	if peer != nil {
-		peer.ReverseProxy.ServeHTTP(w, r)
+	const width = 1000
+	n_columns := 200
+
+	x_px := 500.
+	y_px := 400.
+	z_px := 1.
+
+	// Check if the URL has a non-empty raw query string
+	if r.URL.RawQuery != "" {
+		fmt.Println("URL has query parameters")
+
+		// get vaules from url parameters
+		values := r.URL.Query()
+
+		// for k, v := range values {
+		// 	fmt.Println(k, " => ", v)
+		// }
+
+		if xStr := values.Get("x"); xStr != "" {
+			x_px, _ = strconv.ParseFloat(xStr, 32)
+		}
+		if yStr := values.Get("y"); yStr != "" {
+			y_px, _ = strconv.ParseFloat(yStr, 32)
+		}
+		if zStr := values.Get("z"); zStr != "" {
+			z_px, _ = strconv.ParseFloat(zStr, 32)
+
+			// avoid division by 0
+			if z_px == 0 {
+				z_px =1
+			}
+		}
+	}
+
+	// Transform x,y position into imaginary plane coordinates
+	new_rMin := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) - ((rMax - rMin) / (2 * z_px))
+	new_rMax := rMin + (x_px * z_px * (rMax - rMin) / (width * z_px)) + ((rMax - rMin) / (2 * z_px))
+	new_iMin := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) - ((iMax - iMin) / (2 * z_px))
+	new_iMax := iMin + (y_px * z_px * (iMax - iMin) / (800 * z_px)) + ((iMax - iMin) / (2 * z_px))
+
+	// Parameters in a string
+	str_new_rMin := fmt.Sprintf("%f", new_rMin)
+	str_new_rMax := fmt.Sprintf("%f", new_rMax)
+	str_new_iMin := fmt.Sprintf("%f", new_iMin)
+	str_new_iMax := fmt.Sprintf("%f", new_iMax)
+	str_new_maxEsc := fmt.Sprintf("%f",100 + math.Log2(z_px))
+
+	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax + "&maxEsc=" + str_new_maxEsc
+
+	// Create channel
+	ch := make(chan Pair)
+
+	// divide the work by sending multiple columns for each node in async
+	for x := 0; x < width/n_columns; x++ {
+
+		peer := serverPool.GetNextPeer()
+		go getResponse(peer.URL.String()+"/mandel/?x_1="+strconv.Itoa(x*n_columns)+"&x_2="+strconv.Itoa((x+1)*n_columns)+new_coords, ch, x)
+
+	}
+
+	// draw image
+	// scale := width / (rMax - rMin)
+	// height := int(scale * (iMax - iMin))
+	bounds := image.Rect(0, 0, width, height)
+	b := image.NewNRGBA(bounds)
+	draw.Draw(b, bounds, image.NewUniform(color.Black), image.ZP, draw.Src)
+
+	// Read channel and set color for each pixel
+	for i := 0; i < width/n_columns; i++ {
+
+		// get first Pair in channel and get rid of it
+		channel := <-ch
+		x := channel.order * n_columns
+
+		var array [width][height]float64
+		json.Unmarshal(channel.body, &array)
+
+		for x_1 := 0; x_1 < n_columns; x_1++ {
+			for y := 0; y < height; y++ {
+
+				c := array[x_1][y]
+
+				cr := uint8(float64(red) * c)
+				cg := uint8(float64(green) * c)
+				cb := uint8(float64(blue) * c)
+
+				b.Set(x+x_1, y, color.NRGBA{R: cr, G: cg, B: cb, A: 255})
+
+			}
+		}
+	}
+
+	// create image
+	f, err := os.Create("mandelbrot.png")
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	http.Error(w, "Service not available", http.StatusServiceUnavailable)
+	if err = png.Encode(f, b); err != nil {
+		fmt.Println(err)
+	}
+	if err = f.Close(); err != nil {
+		fmt.Println(err)
+	}
+
+	// render image
+	buf, _ := ioutil.ReadFile("mandelbrot.png")
+	w.Header().Set("Content-Type", "mandelbrot.png")
+	w.Write(buf)
+
 }
 
 // isAlive checks whether a backend is Alive by establishing a TCP connection
@@ -148,7 +301,7 @@ func isBackendAlive(u *url.URL) bool {
 // healthCheck runs a routine for check status of the backends every 2 mins
 func healthCheck() {
 	t := time.NewTicker(time.Minute * 2)
-	for{
+	for {
 		select {
 		case <-t.C:
 			log.Println("Starting health check...")
@@ -225,9 +378,8 @@ func Serve() {
 	}
 }
 
-func main(){
+func main() {
 	fmt.Printf("starting things \n")
 
 	Serve()
 }
-

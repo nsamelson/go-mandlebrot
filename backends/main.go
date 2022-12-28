@@ -5,28 +5,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-
-	// "image"
-	// "image/color"
-	// "image/draw"
-	// "image/png"
-	// "io/ioutil"
-	// "os"
+	"strconv"
 	"log"
 	"math/cmplx"
 	"net/http"
 )
 
-const (
-	maxEsc = 100
-	rMin   = -2.
-	rMax   = .5
-	iMin   = -1.
-	iMax   = 1.
-	width  = 1000
-	red    = 800
-	green  = 600
-	blue   = 700
+var (
+	maxEsc = 100.
 )
 
 func mandelHandler(w http.ResponseWriter, r *http.Request) {
@@ -36,31 +22,49 @@ func mandelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 
-	//TODO: get url parameters and copute mandel
-
-
-	// link : http://localhost:3031/mandel/?x=21&y=22
+	// get the parameters from the url : http://localhost:3031/mandel/?x_1=400&x_2=500&...
 	values := r.URL.Query()
-	for k, v := range values {
-		fmt.Println(k, " => ", v)
+
+	// range of columns of pixels to compute
+	x_1, _ := strconv.Atoi(values["x_1"][0])
+	x_2, _ := strconv.Atoi(values["x_2"][0])
+
+	// new plan coordinates
+	rMin, _ := strconv.ParseFloat(values["rMin"][0], 32)
+	rMax, _ := strconv.ParseFloat(values["rMax"][0], 32)
+	iMin, _ := strconv.ParseFloat(values["iMin"][0], 32)
+	iMax, _ := strconv.ParseFloat(values["iMax"][0], 32)
+	maxEsc, _ = strconv.ParseFloat(values["maxEsc"][0], 32)
+
+
+	// mandelbrot parameters
+	var (
+		x_range = x_2 - x_1
+		width   = 1000
+	)
+
+	// scale the image and get the height (default is 800px)
+	scale := float64(width) / (rMax - rMin)
+	height := int(scale * (iMax - iMin))
+
+	// create the 2D array matrix with specified width and height
+	var mandelArray = make([][]float64, width)
+	for x := range mandelArray {
+		mandelArray[x] = make([]float64, height)
 	}
 
-	// insert mandelbrot
-
-	scale := width / (rMax - rMin)
-	height := int(scale * (iMax - iMin))
-	var mandelArray [width][int(width / (rMax - rMin) * (iMax - iMin))]float64
-
-	for x := 0; x < width; x++ {
+	// compute mandelbrot
+	for x := 0; x < x_range; x++ {
 		for y := 0; y < height; y++ {
 			c := mandelbrot(complex(
-				float64(x)/scale+rMin,
+				float64(x_1)/scale+rMin,
 				float64(y)/scale+iMin))
 			mandelArray[x][y] = c
-
 		}
+		x_1++
 	}
-  // send json response
+
+	// send json response
 	json.NewEncoder(w).Encode(mandelArray)
 
 }
@@ -76,8 +80,8 @@ func main() {
 
 func mandelbrot(a complex128) float64 {
 	i := 0
-	for z := a; cmplx.Abs(z) < 2 && i < maxEsc; i++ {
+	for z := a; cmplx.Abs(z) < 2 && i < int(maxEsc); i++ {
 		z = z*z + a
 	}
-	return float64(maxEsc-i) / maxEsc
+	return (maxEsc- float64(i)) / maxEsc
 }

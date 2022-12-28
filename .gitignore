@@ -1,2 +1,4 @@
 backends/tmp/*
 frontend/tmp/*
+loadbalancer/tmp/main
+tmp/build-errors.log
