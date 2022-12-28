@@ -4,7 +4,7 @@ package main
 
 import (
 	"context"
-	// "math"
+	"math"
 	// "math"
 	// "sort"
 	"encoding/json"
@@ -33,7 +33,7 @@ const (
 	Retry
 )
 const (
-	maxEsc = 100
+	// maxEsc = 100
 	width  = 1000
 	height = 800
 	red    = 800
@@ -219,7 +219,9 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	str_new_rMax := fmt.Sprintf("%f", new_rMax)
 	str_new_iMin := fmt.Sprintf("%f", new_iMin)
 	str_new_iMax := fmt.Sprintf("%f", new_iMax)
-	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax
+	str_new_maxEsc := fmt.Sprintf("%f",100 + math.Log2(z_px))
+
+	new_coords := "&rMin=" + str_new_rMin + "&rMax=" + str_new_rMax + "&iMin=" + str_new_iMin + "&iMax=" + str_new_iMax + "&maxEsc=" + str_new_maxEsc
 
 	// Create channel
 	ch := make(chan Pair)
