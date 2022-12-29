@@ -12,21 +12,27 @@ The `index.html` page will be our interface communicating with the load balancer
 
 ## Load balancing strategy 
 
-Our loadbalancer receives coordinates of the center of the image requested (x,y) and a zoom factor.   
-The loadbalancer will compute the boundaries of the image and the divide it in columns. There will be as much columns ad there are backends :  3 backends means that the image will be split in 3 ranges (For 1000 pixels : 0-333, ...).  
+1. Our loadbalancer first receives coordinates of the center of the image requested (x,y) and a zoom factor (z).   
 
-The loadbalancer then computes the parameters he needs to send to the backends and sends the appropriate request.  
-The backends are selected in a Round Robin fashion ; the one that received a request the longest time ago will be the first one selected.   
+2. The loadbalancer uses these 3 coordinates to calculate the minimum and maximum values for the real and imaginary parts of the plane, which are represented by `rMin`, `rMax`, `iMin`, and `iMax`, respectively.
 
-When the backend receives the request, it computes the mandlebrot set for his range and returns the result to the loadbalncer. 
-The loadbalancer combines the results, generates the full image and sends it back to the client. 
+3. The loadbalancer is configured to divide the image into columns, with each column being a specific width. For example, if the image is 1000 pixels wide and the loadbalancer is configured to divide it into 5 columns, each column will be 200 pixels wide. 
+
+4. The loadbalancer then computes the parameters he needs for each backends and sends the appropriate request. The backends are selected in a Round Robin fashion ; it is a scheduling algorithm that consists in assigning tasks of equal computing time to backends in a fixed order.   
+
+5. When the backend receives the request, it computes the mandlebrot set for his set range of pixels and returns the result to the loadbalancer. 
+6. Finally, the loadbalancer combines the results, generates the full image and sends it back to the client. 
 
 ## API
 ### Backend 
 
-By default, 3 backends are spawned on the ports 3031, 3032 and 3033. 
+By default, 3 backends are spawned on the following addresses : 
+- http://app1:3031;
+- http://app2:3031;
+- http://app3:3031.
+ 
 
-The parameters to be sent in a get request are : 
+The parameters to be sent in a `GET` request are : 
 - x_1 : The image left x coordinate in pixels
 - x_2 : The image right x coordinate in pixels
 
@@ -36,7 +42,7 @@ The parameters to be sent in a get request are :
 - iMax : Maximum imaginary part of the complex number.
 - maxEsc : Maximum number of iterations
 
-The backend will the compute the mandlebrot set between the range defined by x_1 and x_2 and return an image of that set.  
+The backend will then compute the mandlebrot set between the range defined by x_1 and x_2 and return an image of that set.  
 
 ### Loadbalancer
 
@@ -80,3 +86,4 @@ The golang libraries used here are standard :
 - os: Standard OS library. It provides functions for interacting with the file system, environment variables, and other system-level resources.
 - strconv: Int/string conversion. 
 - time: Standard time library. It provides functions for representing and manipulating times, as well as for formatting and parsing time values as strings.
+
