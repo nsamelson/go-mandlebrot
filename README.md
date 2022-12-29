@@ -5,14 +5,19 @@
 Run `docker-compose up --build` in the directory. 
 
 ## Structure
-From the `docker-compose.yml` file, we can setup multiple backend workers. They will generate the image from specified parameters. 
-A load balancer will also we spawned. He acts as a proxy and will communicate with the multiple backends to compose a response for the client. 
+From the `docker-compose.yml` file, we can setup multiple backend workers.  
+They will generate the image from specified parameters.   
+A load balancer will also we spawned. It acts as a proxy and will communicate with the multiple backends to compose a response for the client.  
 The `index.html` page will be our interface communicating with the load balancer. 
 
 ## Load balancing strategy 
 
-Our loadbalancer receives coordinates of the center of the image requested (x,y) and a zoom factor. 
-The loadbalancer will compute the boundaries of the image and the divide it in columns. There will be as much columns ad there are backends :3 backends means that the image will be split in 3 ranges (For 1000 pixels : 0-333, ...). The loadbalancer then computes the parameters he needs to send to the backends and sends the appropriate request. The backends are selected in a Round Robin fashion ; the one that received a request the longest time ago will be the first one selected. 
+Our loadbalancer receives coordinates of the center of the image requested (x,y) and a zoom factor.   
+The loadbalancer will compute the boundaries of the image and the divide it in columns. There will be as much columns ad there are backends :  3 backends means that the image will be split in 3 ranges (For 1000 pixels : 0-333, ...).  
+
+The loadbalancer then computes the parameters he needs to send to the backends and sends the appropriate request.  
+The backends are selected in a Round Robin fashion ; the one that received a request the longest time ago will be the first one selected.   
+
 When the backend receives the request, it computes the mandlebrot set for his range and returns the result to the loadbalncer. 
 The loadbalancer combines the results, generates the full image and sends it back to the client. 
 
