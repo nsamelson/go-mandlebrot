@@ -54,3 +54,29 @@ To begin with a centered image, you can call http://localhost:3030?x=500&y=400&z
 
 
 ## Used libraries
+The golang libraries used here are standard : 
+- math: Standard math library in Go. 
+- math/cmplx : Working with complex numbers. 
+
+- encoding/json: Encoding and decoding data in JavaScript Object Notation (JSON) format.
+
+- flag: Parsing command-line flags.
+
+- fmt: Formatting and printing strings. 
+
+- image: Working with images. 
+
+- image/color: Working with colors in images.
+
+- image/draw: Drawing geometric shapes, text, and other graphical elements onto images.
+
+- image/png: Reading and writing PNG (Portable Network Graphics) image files.
+
+- io/ioutil: Reading and writing data to files and other I/O sources.
+
+- math/rand: Generating random numbers.
+
+- net/http: Standard HTTP library.
+- os: Standard OS library. It provides functions for interacting with the file system, environment variables, and other system-level resources.
+- strconv: Int/string conversion. 
+- time: Standard time library. It provides functions for representing and manipulating times, as well as for formatting and parsing time values as strings.
