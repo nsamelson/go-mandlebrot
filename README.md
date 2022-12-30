@@ -87,3 +87,6 @@ The golang libraries used here are standard :
 - strconv: Int/string conversion. 
 - time: Standard time library. It provides functions for representing and manipulating times, as well as for formatting and parsing time values as strings.
 
+## Participants
+- Samelson Nicolas 17288
+- Martinez Sebastien 18360
